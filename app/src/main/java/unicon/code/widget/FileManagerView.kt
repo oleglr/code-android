@@ -10,6 +10,7 @@ import java.io.File
 
 class FileManagerView(context: Context, var attrs: AttributeSet) : RecyclerView(context, attrs) {
     private var openFileListener: ((file: File) -> Unit)? = null
+    private var changeDirListener: ((dir: File) -> Unit)? = null
 
     init {
         layoutManager = LinearLayoutManager(context)
@@ -30,11 +31,31 @@ class FileManagerView(context: Context, var attrs: AttributeSet) : RecyclerView(
             openFileListener!!.invoke(file)
     }
 
+    fun onChangeDir(dir: File) {
+        if(changeDirListener != null) changeDirListener!!.invoke(dir)
+    }
+
+    fun getCurrentDir() : File {
+        return getFileManagerAdapter().currentDir
+    }
+
     fun openDir(path: File) {
         getFileManagerAdapter().openDir(path)
     }
 
+    fun reopen() {
+        openDir(getFileManagerAdapter().currentDir)
+    }
+
+    fun prevDir() {
+        getFileManagerAdapter().prevDir()
+    }
+
     fun setOnOpenFileListener(lam: (file: File) -> Unit) {
         openFileListener = lam
+    }
+
+    fun setOnChangeDirListener(lam: (dir: File) -> Unit) {
+        changeDirListener = lam
     }
 }

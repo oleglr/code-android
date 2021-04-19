@@ -10,6 +10,8 @@ import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatEditText
 import unicon.code.CURRENT_LINE_COLOR
 import unicon.code.LINE_NUMBER_COLOR
+import java.io.File
+import java.nio.charset.Charset
 
 
 class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(context, attrs) {
@@ -18,6 +20,12 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
 
     private val currentLineColor = Color.parseColor(CURRENT_LINE_COLOR)
     private val lineNumberColor = Color.parseColor(LINE_NUMBER_COLOR)
+
+    private var currentFile: File? = null
+    private var savedBuffer = ""
+
+    private var openFileListener: ((file: File) -> Unit)? = null
+    private var saveFileListener: ((file: File) -> Unit)? = null
 
     init {
         setHorizontallyScrolling(true)
@@ -64,5 +72,60 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
     private fun getCurrentLine(): Int {
         val l: Layout? = layout
         return l?.getLineForOffset(selectionStart) ?: -1
+    }
+
+    fun setOnOpenFileListener(lam: (file: File) -> Unit) {
+        openFileListener = lam
+    }
+
+    fun setOnSaveFileListener(lam: (file: File) -> Unit) {
+        saveFileListener = lam
+    }
+
+    /* открыть файл */
+    fun openFile(file: File) {
+        currentFile = file
+
+        if(openFileListener != null)
+            openFileListener!!(file)
+
+        if(file.exists()) {
+            val content = file.readText(Charset.defaultCharset())
+
+            savedBuffer = content
+            setText(content)
+        }
+    }
+
+    // закрыть файл
+    fun closeFile() {
+        currentFile = null
+        savedBuffer = ""
+
+        setText("")
+    }
+
+    // сохранить файл, в ответ возращает результат
+    fun saveFile(): Boolean {
+        if(currentFile != null) {
+            if(openFileListener != null) openFileListener!!(currentFile!!)
+
+            currentFile!!.writeText(text.toString(), Charset.defaultCharset())
+            savedBuffer = text.toString()
+
+            return true
+        }
+
+        return false
+    }
+
+    // проверить сохранены ли изменения
+    fun isSaved(): Boolean {
+        return savedBuffer == text.toString()
+    }
+
+    /* получить текущий файл */
+    fun getCurrentFile(): File? {
+        return currentFile
     }
 }

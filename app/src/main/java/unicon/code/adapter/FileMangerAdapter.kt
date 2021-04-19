@@ -24,7 +24,7 @@ class FileMangerAdapter(var fmview: FileManagerView) : RecyclerView.Adapter<File
         }
     }
 
-    var currentDir = File(Environment.getExternalStorageDirectory().path)
+    var currentDir = File("/")
     private var fileList = ArrayList<File>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileManagerViewHolder {
@@ -42,6 +42,8 @@ class FileMangerAdapter(var fmview: FileManagerView) : RecyclerView.Adapter<File
 
         holder.name!!.text = file.name
 
+        holder.icon!!.setImageResource(if(file.isFile) R.drawable.ic_outline_insert_drive_file_24 else R.drawable.ic_outline_folder_24)
+
         holder.itemView.setOnClickListener {
             val pos = fmview.getChildLayoutPosition(it)
 
@@ -58,5 +60,12 @@ class FileMangerAdapter(var fmview: FileManagerView) : RecyclerView.Adapter<File
         fileList = path.listFiles().toCollection(ArrayList())
 
         notifyDataSetChanged()
+
+        fmview.onChangeDir(currentDir)
+    }
+
+    fun prevDir() {
+        val parent = File(currentDir.absoluteFile.parent)
+        openDir(parent)
     }
 }

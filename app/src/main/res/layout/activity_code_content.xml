@@ -9,7 +9,7 @@
     <LinearLayout
         android:layout_width="2px"
         android:layout_height="match_parent"
-        android:background="#d1d1d1"/>
+        android:background="@color/color_border"/>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -29,18 +29,33 @@
                 android:layout_height="?attr/actionBarSize"
                 android:id="@+id/menu_btn"
                 android:src="@drawable/ic_baseline_menu_24"
-                android:scaleType="center"/>
+                android:scaleType="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical|right">
+                <ImageView
+                    android:layout_width="?attr/actionBarSize"
+                    android:layout_height="?attr/actionBarSize"
+                    android:id="@+id/more_btn"
+                    android:src="@drawable/ic_outline_more_vert_24"
+                    android:scaleType="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"/>
+            </LinearLayout>
 
         </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="1px"
-            android:background="#cacaca"/>
 
         <unicon.code.widget.CodeEditor
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:id="@+id/code_editor"
+            android:layout_margin="2dp"
             android:padding="8dp"
             android:gravity="left|top"
             android:fontFamily="monospace"
