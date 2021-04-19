@@ -2,17 +2,14 @@ package unicon.code.activity
 
 import android.Manifest
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Environment
-import android.view.ContextMenu
-import android.view.MenuItem
 import android.view.View
 import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.app.ActivityCompat
 import androidx.core.view.GravityCompat
@@ -22,7 +19,10 @@ import com.afollestad.materialdialogs.MaterialDialog
 import com.afollestad.materialdialogs.bottomsheets.BottomSheet
 import com.afollestad.materialdialogs.input.getInputField
 import com.afollestad.materialdialogs.input.input
-import unicon.code.*
+import unicon.code.Global
+import unicon.code.R
+import unicon.code.dialog.SplashDialog
+import unicon.code.hideKeyboardFrom
 import unicon.code.widget.CodeEditor
 import unicon.code.widget.FileManagerView
 import java.io.File
@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_CODE_PERMISSIONS = 1
 
     private var prefs: SharedPreferences? = null
+    private lateinit var splash: SplashDialog
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_code)
@@ -60,6 +61,12 @@ class MainActivity : AppCompatActivity() {
         save_btn = findViewById(R.id.save_btn)
 
         prefs = getSharedPreferences("main", Context.MODE_PRIVATE)
+
+        // показать SplashScreen
+        splash = SplashDialog(this)
+
+        splash.show()
+        splash.animate()
 
         // проверка разрешений
         if(ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
@@ -117,12 +124,23 @@ class MainActivity : AppCompatActivity() {
 
     /* продолжение onCreate */
     private fun startApp() {
+        splash.dismiss()
+        startApp2()
+    }
+
+    private fun startApp2() {
         setupFileManager()
         setupDrawer()
         setupFileManagerButtons()
         setupCodeEditor()
         setupBar()
         loadPrefs()
+
+        val intent = intent
+        val u = intent.data
+        if(u != null) {
+            code_editor.openFile(File(u.toString().replace("file://", "")))
+        }
     }
 
     fun loadPrefs() {
