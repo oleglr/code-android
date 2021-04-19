@@ -1,17 +1,18 @@
 package unicon.code.activity
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Environment
+import android.view.ContextMenu
+import android.view.MenuItem
 import android.view.View
-import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.widget.*
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.app.ActivityCompat
 import androidx.core.view.GravityCompat
@@ -21,8 +22,7 @@ import com.afollestad.materialdialogs.MaterialDialog
 import com.afollestad.materialdialogs.bottomsheets.BottomSheet
 import com.afollestad.materialdialogs.input.getInputField
 import com.afollestad.materialdialogs.input.input
-import unicon.code.R
-import unicon.code.hideKeyboardFrom
+import unicon.code.*
 import unicon.code.widget.CodeEditor
 import unicon.code.widget.FileManagerView
 import java.io.File
@@ -41,6 +41,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var save_btn: AppCompatImageView
 
     private val REQUEST_CODE_PERMISSIONS = 1
+
+    private var prefs: SharedPreferences? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_code)
@@ -56,6 +58,8 @@ class MainActivity : AppCompatActivity() {
         btn_newdir = findViewById(R.id.btn_newdir)
         btn_backdir = findViewById(R.id.btn_backdir)
         save_btn = findViewById(R.id.save_btn)
+
+        prefs = getSharedPreferences("main", Context.MODE_PRIVATE)
 
         // проверка разрешений
         if(ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
@@ -73,30 +77,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         when(requestCode) {
             REQUEST_CODE_PERMISSIONS -> { // если выданы права
                 startApp()
             }
         }
 
-        super.onActivityResult(requestCode, resultCode, data)
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     override fun onBackPressed() {
+        // если меню закрыто, то просто выключать приложение
         if(!drawer_layout.isDrawerOpen(GravityCompat.START)) super.onBackPressed()
 
-        val adapter = file_manger.getFileManagerAdapter()
-
-        if(adapter.currentDir != File(Environment.getExternalStorageDirectory().path)) {
+        if(file_manger.getCurrentDir() != File(Environment.getExternalStorageDirectory().path)) { // если это внутреняя память
             file_manger.prevDir()
-        } else {
+        } else { // если другая папка
+            // если сохранено, то выходим из приложения
             if(code_editor.isSaved()) super.onBackPressed()
-            else {
+            else { // если нет
+
+                // показать диалог с предруждением
                 showSaveWarningDialog {
                     when(it) {
-                        true -> {
+                        true -> { // согласился
                             code_editor.saveFile()
+                            super.onBackPressed()
+                        }
+
+                        false -> { // не согласился
                             super.onBackPressed()
                         }
                     }
@@ -106,22 +116,56 @@ class MainActivity : AppCompatActivity() {
     }
 
     /* продолжение onCreate */
-    fun startApp() {
+    private fun startApp() {
         setupFileManager()
         setupDrawer()
         setupFileManagerButtons()
         setupCodeEditor()
         setupBar()
+        loadPrefs()
     }
 
-    fun setupBar() {
+    fun loadPrefs() {
+        if(prefs!!.getBoolean("devmode", false))
+            Global.isDev = true
+    }
+
+    private fun setupBar() {
+        menu_btn.setOnClickListener {
+            drawer_layout.openDrawer(GravityCompat.START)
+        }
+
         save_btn.setOnClickListener {
             code_editor.saveFile()
+
+            Toast.makeText(applicationContext, "Файл сохранен!", Toast.LENGTH_LONG).show()
+        }
+
+        val popup = PopupMenu(applicationContext, more_btn)
+        val menu = popup.menu
+
+        menu.add("Выйти")
+
+        popup.setOnMenuItemClickListener {
+            if(it.title == "Выйти") finishAffinity()
+
+            true
+        }
+
+        more_btn.setOnClickListener { popup.show() }
+        more_btn.setOnLongClickListener {
+            val edt = prefs!!.edit()
+            edt.putBoolean("devmode", true)
+            edt.apply()
+
+            finishAffinity()
+
+            true
         }
     }
 
     /* настроить редактор кода */
-    fun setupCodeEditor() {
+    private fun setupCodeEditor() {
         code_editor.openFile(File(Environment.getExternalStorageDirectory().path + "/temp.txt"))
         code_editor.setOnOpenFileListener {
         }
@@ -131,7 +175,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /* настройка кнопок в менеджере файлов */
-    fun setupFileManagerButtons() {
+    private fun setupFileManagerButtons() {
         val adapter = file_manger.getFileManagerAdapter()
 
         btn_newfile.setOnClickListener {
@@ -176,7 +220,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /* настройка менеджера файлов */
-    fun setupFileManager() {
+    private fun setupFileManager() {
         file_manger.setOnOpenFileListener { file ->
             drawer_layout.closeDrawer(GravityCompat.START)
 
@@ -203,7 +247,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /* настройка меню */
-    fun setupDrawer() {
+    private fun setupDrawer() {
         drawer_layout.setScrimColor(Color.TRANSPARENT)
         drawer_layout.drawerElevation = 0f
         drawer_layout.addDrawerListener(object: DrawerLayout.DrawerListener {
@@ -224,13 +268,9 @@ class MainActivity : AppCompatActivity() {
             }
 
         })
-
-        menu_btn.setOnClickListener {
-            drawer_layout.openDrawer(GravityCompat.START)
-        }
     }
 
-    fun showSaveWarningDialog(lam: (isSave: Boolean) -> Unit) {
+    private fun showSaveWarningDialog(lam: (isSave: Boolean) -> Unit) {
         MaterialDialog(this, BottomSheet(LayoutMode.WRAP_CONTENT)).show {
             title(-1, "Изменения не сохранены!")
             message(-1, "Вы хотите сохранить файл?")
