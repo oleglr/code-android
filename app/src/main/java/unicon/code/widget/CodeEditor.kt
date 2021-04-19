@@ -5,7 +5,11 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
+import android.text.Editable
 import android.text.Layout
+import android.text.Spannable
+import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
 import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatEditText
 import unicon.code.CURRENT_LINE_COLOR
@@ -20,6 +24,7 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
 
     private val currentLineColor = Color.parseColor(CURRENT_LINE_COLOR)
     private val lineNumberColor = Color.parseColor(LINE_NUMBER_COLOR)
+    private val functionColor = Color.parseColor("#dd4462")
 
     private var currentFile: File? = null
     private var savedBuffer = ""
@@ -34,6 +39,48 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
 
         dPaint.textSize = textSize
         dPaint.color = lineNumberColor
+
+        var SPANS = arrayOf(
+            "fun" to Color.parseColor("#cb602d"),
+            "private" to Color.parseColor("#cb602d")
+        )
+        addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+            }
+
+            override fun afterTextChanged(s: Editable?) {
+                SPANS.forEach {
+                    val index: Int = s.toString().indexOf(it.first)
+                    if (index >= 0) {
+                        s!!.setSpan(
+                            ForegroundColorSpan(it.second),
+                            index,
+                            index + it.first.length,
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+
+                        var pos = 0
+                        if(it.first == "fun") {
+                            while(pos < s.length) {
+                                if(s.toString()[pos] == '(') break
+
+                                s!!.setSpan(
+                                    ForegroundColorSpan(functionColor),
+                                    pos,
+                                    pos,
+                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                                )
+
+                                pos++
+                            }
+                        }
+                    }
+                }
+            }
+        })
     }
 
     override fun onDraw(canvas: Canvas?) {

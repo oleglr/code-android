@@ -12,6 +12,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.app.ActivityCompat
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
@@ -37,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btn_newfile: LinearLayout
     private lateinit var btn_newdir: LinearLayout
     private lateinit var btn_backdir: LinearLayout
+    private lateinit var save_btn: AppCompatImageView
 
     private val REQUEST_CODE_PERMISSIONS = 1
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,6 +55,7 @@ class MainActivity : AppCompatActivity() {
         btn_newfile = findViewById(R.id.btn_newfile)
         btn_newdir = findViewById(R.id.btn_newdir)
         btn_backdir = findViewById(R.id.btn_backdir)
+        save_btn = findViewById(R.id.save_btn)
 
         // проверка разрешений
         if(ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
@@ -108,6 +111,13 @@ class MainActivity : AppCompatActivity() {
         setupDrawer()
         setupFileManagerButtons()
         setupCodeEditor()
+        setupBar()
+    }
+
+    fun setupBar() {
+        save_btn.setOnClickListener {
+            code_editor.saveFile()
+        }
     }
 
     /* настроить редактор кода */

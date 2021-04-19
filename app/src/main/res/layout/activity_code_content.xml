@@ -41,6 +41,15 @@
                 <ImageView
                     android:layout_width="?attr/actionBarSize"
                     android:layout_height="?attr/actionBarSize"
+                    android:id="@+id/save_btn"
+                    android:src="@drawable/ic_outline_save_24"
+                    android:scaleType="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"/>
+                <ImageView
+                    android:layout_width="?attr/actionBarSize"
+                    android:layout_height="?attr/actionBarSize"
                     android:id="@+id/more_btn"
                     android:src="@drawable/ic_outline_more_vert_24"
                     android:scaleType="center"
