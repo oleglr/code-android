@@ -5,8 +5,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -26,6 +28,7 @@ import unicon.code.hideKeyboardFrom
 import unicon.code.widget.CodeEditor
 import unicon.code.widget.FileManagerView
 import java.io.File
+
 
 class MainActivity : AppCompatActivity() {
     private lateinit var code_editor: CodeEditor
@@ -139,8 +142,20 @@ class MainActivity : AppCompatActivity() {
         val intent = intent
         val u = intent.data
         if(u != null) {
-            code_editor.openFile(File(u.toString().replace("file://", "")))
+            var file = File(getPath(u)!!)
+            println("BBB ${file.path}")
+            code_editor.openFile(file)
         }
+    }
+
+    fun getPath(uri: Uri): String? {
+        val projection = arrayOf(MediaStore.Images.Media.DATA)
+        val cursor = contentResolver.query(uri, projection, null, null, null) ?: return null
+        val column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+        cursor.moveToFirst()
+        val s = cursor.getString(column_index)
+        cursor.close()
+        return s
     }
 
     fun loadPrefs() {
