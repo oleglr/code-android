@@ -11,4 +11,8 @@ class Plugin(val name: String, val file: File, var isLoaded: Boolean, var error:
     fun openFile(file: File) : Boolean {
         return (duktape.evaluate("openFile('${file.path}');") as Boolean)
     }
+
+    fun loadPattern() : String {
+        return (duktape.evaluate("loadPattern();") as String)
+    }
 }

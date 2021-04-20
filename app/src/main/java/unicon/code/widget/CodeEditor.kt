@@ -1,5 +1,6 @@
 package unicon.code.widget
 
+import android.app.Activity
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -14,10 +15,12 @@ import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatEditText
 import unicon.code.CURRENT_LINE_COLOR
 import unicon.code.LINE_NUMBER_COLOR
+import unicon.code.other.HighlightSystem
+import unicon.code.other.SyntaxHighlightSpan
 import unicon.code.plugin.Plugin
 import java.io.File
 import java.nio.charset.Charset
-
+import java.util.regex.Pattern
 
 class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(context, attrs) {
     private val highlightPaint = Paint()
@@ -25,15 +28,34 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
 
     private val currentLineColor = Color.parseColor(CURRENT_LINE_COLOR)
     private val lineNumberColor = Color.parseColor(LINE_NUMBER_COLOR)
-    private val functionColor = Color.parseColor("#dd4462")
 
     private var currentFile: File? = null
     private var savedBuffer = ""
 
     private var openFileListener: ((file: File) -> Unit)? = null
     private var saveFileListener: ((file: File) -> Unit)? = null
+    private val textWatcher = object: TextWatcher {
+        override fun afterTextChanged(s: Editable?) {
+            println("KW $keywords")
+            //if(s != null)
+                //if(keywords != null)
+                    //highlightSystem.runTask(s!!)
+        }
+
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+            // highlightSystem.cancelTask()
+        }
+
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { }
+
+    }
 
     var currentPlugin: Plugin? = null
+
+    // подстветка
+    private var keywords: Pattern? = null
+    private var spans: ArrayList<SyntaxHighlightSpan>? = null
+    // private var highlightSystem = HighlightSystem()
 
     init {
         setHorizontallyScrolling(true)
@@ -42,6 +64,14 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
 
         dPaint.textSize = textSize
         dPaint.color = lineNumberColor
+
+        addTextChangedListener(textWatcher)
+
+//        highlightSystem.setOnSpansListener {
+//            (context as Activity).runOnUiThread {
+//                updateHightlight(it)
+//            }
+//        }
     }
 
     override fun onDraw(canvas: Canvas?) {
@@ -65,9 +95,69 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
         super.onDraw(canvas)
     }
 
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if(spans != null) updateHightlight(spans!!)
+    }
+
+    override fun onScrollChanged(horiz: Int, vert: Int, oldHoriz: Int, oldVert: Int) {
+        super.onScrollChanged(horiz, vert, oldHoriz, oldVert)
+        if(spans != null) updateHightlight(spans!!)
+    }
+
     override fun getCompoundPaddingLeft(): Int {
         val offset = (textSize / 1.5).toInt()
         return lineCount.toString().length * offset + offset
+    }
+
+    fun updatePlugin(pl: Plugin?) {
+        if(pl != null) {
+            currentPlugin = pl
+            keywords = Pattern.compile(currentPlugin!!.loadPattern())
+            //println("KW $keywords")
+
+            //highlightSystem.updatePattern(keywords!!)
+        } else {
+            currentPlugin = null
+            keywords = null
+        }
+    }
+
+    private fun updateHightlight(spans: ArrayList<SyntaxHighlightSpan>) {
+        this.spans = spans
+
+        val textSpans = text!!.getSpans<SyntaxHighlightSpan>(0, text!!.length, SyntaxHighlightSpan::class.java)
+        for (span in textSpans) {
+            text!!.removeSpan(span)
+        }
+
+        val topVisibleLine = scrollY / lineHeight
+        val bottomVisibleLine = topVisibleLine + height / lineHeight + 1 // height - высота View
+        val lineStart = layout.getLineStart(topVisibleLine)
+        val lineEnd = layout.getLineEnd(bottomVisibleLine)
+
+        for (span in spans) {
+            val isInText = span.start >= 0 && span.end <= text!!.length
+            val isValid = span.start <= span.end
+            val isVisible = span.start in lineStart..lineEnd
+                    || span.start <= lineEnd && span.end >= lineStart
+            if (isInText && isValid && isVisible) {
+                text!!.setSpan(
+                        span,
+                        if (span.start < lineStart) lineStart else span.start,
+                        if (span.end > lineEnd) lineEnd else span.end,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+        }
+    }
+
+    /* установить текст без события */
+    fun processText(newText: String) {
+        removeTextChangedListener(textWatcher)
+        // undoStack.clear()
+        setText(newText)
+        addTextChangedListener(textWatcher)
     }
 
     private fun highlightLine(line: Int, canvas: Canvas) {

@@ -32,6 +32,7 @@ import unicon.code.plugin.PluginsLoader
 import unicon.code.widget.CodeEditor
 import unicon.code.widget.FileManagerView
 import java.io.File
+import java.nio.charset.Charset
 import kotlin.concurrent.thread
 
 
@@ -139,11 +140,15 @@ class MainActivity : AppCompatActivity() {
         thread { startAppBackground() }
     }
 
+    /* продолжение onCreate в фоне */
     private fun startAppBackground() {
+        // генерируем путь к папке приложения в Androd/data
         Global.appDir = Environment.getExternalStorageDirectory().path + "/Android/data/" + applicationInfo.packageName + "/files/"
+        Global.charset = Charset.defaultCharset()
 
         runOnUiThread { splash.setProgressMessage("Настройка") }
 
+        // настраиваем файлы приложения
         val pdir = File(Global.appDir + "/plugins/")
         if(!pdir.exists()) pdir.mkdirs()
 
@@ -153,9 +158,20 @@ class MainActivity : AppCompatActivity() {
         // получение плагинов с ассетов
         assets.list("plugins")!!.forEach {
             val stream = assets.open("plugins/$it")
-            val newfile = File(Global.appDir + "plugins/" + it)
+            val oldstr = stream.readBytes().toString(Global.charset!!)
 
-            if(!newfile.exists()) stream.copyTo(newfile.outputStream())
+            val newfile = File(Global.appDir + "plugins/" + it)
+            val newstr = if(newfile.exists()) newfile.readText(Global.charset!!) else ""
+
+            // если плагин не совпадает, или он отсутстсует
+            if(oldstr != newstr) {
+                // удаляем файл есть он есть
+                if(newfile.exists()) newfile.delete()
+
+                // копируем новый файл
+                // stream.copyTo(newfile.outputStream())
+                newfile.writeText(oldstr, Global.charset!!)
+            }
         }
 
         runOnUiThread { splash.setProgressMessage("Загрузка плагинов") }
@@ -254,7 +270,7 @@ class MainActivity : AppCompatActivity() {
                 isOpen = plugin.openFile(file)
 
                 if(isOpen) { // если плагин может открыть этот файл
-                    code_editor.currentPlugin = plugin
+                    code_editor.updatePlugin(plugin)
                     println("currentPlugin set to ${plugin.name}")
 
                     return@forEach
@@ -262,7 +278,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             if(!isOpen) {
-                code_editor.currentPlugin = null
+                code_editor.updatePlugin(null)
             }
         }
         code_editor.setOnSaveFileListener {

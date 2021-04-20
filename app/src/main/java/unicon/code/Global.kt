@@ -1,6 +1,9 @@
 package unicon.code
 
+import java.nio.charset.Charset
+
 object Global {
-    open var isDev = false
-    open var appDir = ""
+    var isDev = false
+    var appDir = ""
+    var charset: Charset? = null
 }
