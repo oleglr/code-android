@@ -6,58 +6,64 @@ import java.io.File
 import java.lang.Exception
 import java.nio.charset.Charset
 
-class PluginsLoader(ctx: Context) {
-    private val duktape = Duktape.create()
-    public val plugins = ArrayList<Plugin>()
-
-    init {
-        duktape.set("API", API::class.java, object: API {
-            override fun outln(msg: String) {
-                out("$msg\n")
-            }
-
-            override fun out(msg: String) {
-                println(msg)
-            }
-
-        })
-    }
-
+class PluginsLoader(var ctx: Context) {
     private var pluginLoadedListener: ((pl: Plugin) -> Unit)? = null
 
-    fun loadPlugins(dir: File) {
-        dir.listFiles().forEach { // проходимся по всем файлам
-            var isLoaded = false
-            var error = ""
+    private val plugins = ArrayList<Plugin>()
+    private val apiObject = object: API {
+        override fun outln(msg: String) {
+            out("$msg\n")
+        }
 
-            try {
-                val initOutput = duktape.evaluate(it.readText(Charset.defaultCharset()))
-                var base = duktape.get(dir.name.replace(".js", ""), PluginBase::class.java) as PluginBase
-                base.initPlugin()
+        override fun out(msg: String) {
+            print(msg)
+        }
 
-                isLoaded = true
-            } catch (e: Exception) {
-                error = e.toString()
-                println("Exception in PluginLoader: $e")
-            }
+    }
 
-            val pl = Plugin(it.name, it, isLoaded, error)
+    fun loadPlugin(file: File) {
+        val plugin = Plugin(
+                file.name.replace(".js", ""),
+                file,
+                false,
+                "",
+                Duktape.create()
+        )
 
-            plugins.add(pl)
-            if(pluginLoadedListener != null) pluginLoadedListener!!.invoke(pl)
+        plugin.duktape.set("API", API::class.java, apiObject)
+
+        try {
+            plugin.duktape.evaluate(file.readText(Charset.defaultCharset()))
+            plugin.initPlugin()
+
+            plugin.isLoaded = true
+        } catch (e: Exception) {
+            println("PluginLoader: $e")
+            plugin.error = e.toString()
+        }
+
+        plugins.add(plugin)
+
+        if(pluginLoadedListener != null)
+            pluginLoadedListener!!.invoke(plugin)
+    }
+
+    fun loadPluginsFromDir(dir: File) {
+        dir.listFiles().forEach {
+            if(it.name.endsWith(".js")) loadPlugin(it)
         }
     }
 
-    fun setOnPluginLoadedListener(lam: ((pl: Plugin) -> Unit)?) {
+    fun getPlugins() : ArrayList<Plugin> {
+        return plugins
+    }
+
+    fun setOnPluginLoadedListener(lam: (pl: Plugin) -> Unit) {
         pluginLoadedListener = lam
     }
 }
 
 interface API {
-    open fun outln(msg: String)
-    open fun out(msg: String)
-}
-
-interface PluginBase {
-    fun initPlugin()
+    fun outln(msg: String)
+    fun out(msg: String)
 }

@@ -14,6 +14,7 @@ import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatEditText
 import unicon.code.CURRENT_LINE_COLOR
 import unicon.code.LINE_NUMBER_COLOR
+import unicon.code.plugin.Plugin
 import java.io.File
 import java.nio.charset.Charset
 
@@ -32,6 +33,8 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
     private var openFileListener: ((file: File) -> Unit)? = null
     private var saveFileListener: ((file: File) -> Unit)? = null
 
+    var currentPlugin: Plugin? = null
+
     init {
         setHorizontallyScrolling(true)
 
@@ -39,48 +42,6 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
 
         dPaint.textSize = textSize
         dPaint.color = lineNumberColor
-
-        var SPANS = arrayOf(
-            "fun" to Color.parseColor("#cb602d"),
-            "private" to Color.parseColor("#cb602d")
-        )
-        addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-            }
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-            }
-
-            override fun afterTextChanged(s: Editable?) {
-                SPANS.forEach {
-                    val index: Int = s.toString().indexOf(it.first)
-                    if (index >= 0) {
-                        s!!.setSpan(
-                            ForegroundColorSpan(it.second),
-                            index,
-                            index + it.first.length,
-                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
-
-                        var pos = 0
-                        if(it.first == "fun") {
-                            while(pos < s.length) {
-                                if(s.toString()[pos] == '(') break
-
-                                s!!.setSpan(
-                                    ForegroundColorSpan(functionColor),
-                                    pos,
-                                    pos,
-                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                                )
-
-                                pos++
-                            }
-                        }
-                    }
-                }
-            }
-        })
     }
 
     override fun onDraw(canvas: Canvas?) {
@@ -134,7 +95,7 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
         currentFile = file
 
         if(openFileListener != null)
-            openFileListener!!(file)
+            openFileListener!!.invoke(file)
 
         if(file.exists()) {
             val content = file.readText(Charset.defaultCharset())
@@ -155,7 +116,7 @@ class CodeEditor(context: Context, var attrs: AttributeSet) : AppCompatEditText(
     // сохранить файл, в ответ возращает результат
     fun saveFile(): Boolean {
         if(currentFile != null) {
-            if(openFileListener != null) openFileListener!!(currentFile!!)
+            if(saveFileListener != null) saveFileListener!!(currentFile!!)
 
             currentFile!!.writeText(text.toString(), Charset.defaultCharset())
             savedBuffer = text.toString()

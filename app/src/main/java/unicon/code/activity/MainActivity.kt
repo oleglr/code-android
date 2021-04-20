@@ -32,6 +32,7 @@ import unicon.code.plugin.PluginsLoader
 import unicon.code.widget.CodeEditor
 import unicon.code.widget.FileManagerView
 import java.io.File
+import kotlin.concurrent.thread
 
 
 class MainActivity : AppCompatActivity() {
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var drawer_layout: DrawerLayout
     private lateinit var code_content: FrameLayout
     private lateinit var menu_btn: ImageView
+    private lateinit var file_name: TextView
     private lateinit var more_btn: ImageView
     private lateinit var file_manger: FileManagerView
     private lateinit var mark_path: TextView
@@ -61,6 +63,7 @@ class MainActivity : AppCompatActivity() {
         drawer_layout = findViewById(R.id.drawer_layout)
         code_content = findViewById(R.id.code_content)
         menu_btn = findViewById(R.id.menu_btn)
+        file_name = findViewById(R.id.file_name)
         more_btn = findViewById(R.id.more_btn)
         file_manger = findViewById(R.id.file_manger)
         mark_path = findViewById(R.id.mark_path)
@@ -133,18 +136,40 @@ class MainActivity : AppCompatActivity() {
 
     /* продолжение onCreate */
     private fun startApp() {
+        thread { startAppBackground() }
+    }
+
+    private fun startAppBackground() {
         Global.appDir = Environment.getExternalStorageDirectory().path + "/Android/data/" + applicationInfo.packageName + "/files/"
 
-        splash.setProgressMessage("Настройка")
+        runOnUiThread { splash.setProgressMessage("Настройка") }
+
         val pdir = File(Global.appDir + "/plugins/")
         if(!pdir.exists()) pdir.mkdirs()
 
-        splash.setProgressMessage("Загрузка плагинов")
-        ploader = PluginsLoader(this)
-        ploader!!.setOnPluginLoadedListener { if(!it.isLoaded) splash.setProgressMessage(it.error) }
-        ploader!!.loadPlugins(pdir)
+        val tmpFile = File(Global.appDir + "/file.tmp")
+        if(tmpFile.exists()) tmpFile.delete()
 
-        startApp2()
+        // получение плагинов с ассетов
+        assets.list("plugins")!!.forEach {
+            val stream = assets.open("plugins/$it")
+            val newfile = File(Global.appDir + "plugins/" + it)
+
+            if(!newfile.exists()) stream.copyTo(newfile.outputStream())
+        }
+
+        runOnUiThread { splash.setProgressMessage("Загрузка плагинов") }
+
+        ploader = PluginsLoader(this)
+        ploader!!.setOnPluginLoadedListener {
+            if(!it.isLoaded) runOnUiThread {
+                splash.setProgressMessage(it.error)
+            }
+        }
+        ploader!!.loadPluginsFromDir(pdir)
+
+        Thread.sleep(1000)
+        runOnUiThread { startApp2() }
     }
 
     /* продолжение onCreate 2 */
@@ -169,9 +194,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showPluginsManager() {
         val myItems = ArrayList<String>()
-        ploader!!.plugins.forEach {
-            myItems.add(it.name)
-        }
+        ploader!!.getPlugins().forEach { myItems.add(it.name) }
 
         MaterialDialog(this, BottomSheet(LayoutMode.WRAP_CONTENT)).show {
             title(-1, "Загруженые плагины")
@@ -223,12 +246,30 @@ class MainActivity : AppCompatActivity() {
 
     /* настроить редактор кода */
     private fun setupCodeEditor() {
-        code_editor.openFile(File(Environment.getExternalStorageDirectory().path + "/temp.txt"))
-        code_editor.setOnOpenFileListener {
+        code_editor.setOnOpenFileListener { file ->
+            file_name.text = if(file.name == "file.tmp") "" else file.name
+
+            var isOpen = false
+            ploader!!.getPlugins().forEach { plugin ->
+                isOpen = plugin.openFile(file)
+
+                if(isOpen) { // если плагин может открыть этот файл
+                    code_editor.currentPlugin = plugin
+                    println("currentPlugin set to ${plugin.name}")
+
+                    return@forEach
+                }
+            }
+
+            if(!isOpen) {
+                code_editor.currentPlugin = null
+            }
         }
         code_editor.setOnSaveFileListener {
             file_manger.reopen()
         }
+
+        code_editor.openFile(File(Global.appDir + "file.tmp"))
     }
 
     /* настройка кнопок в менеджере файлов */
