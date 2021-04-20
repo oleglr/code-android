@@ -7,6 +7,7 @@ import android.text.Spannable
 import android.text.TextPaint
 import android.text.style.CharacterStyle
 import android.text.style.ForegroundColorSpan
+import unicon.code.plugin.CodeRegex
 import java.util.regex.Pattern
 import kotlin.concurrent.thread
 
@@ -14,44 +15,39 @@ class HighlightSystem() {
     private var spansListener: ((spans: ArrayList<SyntaxHighlightSpan>) -> Unit)? = null
     private var syntaxHighlightSpans: ArrayList<SyntaxHighlightSpan> = ArrayList()
 
-    private var keywords: Pattern? = null
+    private var regexs: ArrayList<CodeRegex>? = null
     private var state = false
 
     fun runTask(text: Editable) {
-        if(keywords == null) return
+        if(regexs == null) return
 
         state = true
         syntaxHighlightSpans.clear()
 
         thread {
-            while (state) {
-                val matcher = keywords!!.matcher(text)
+            regexs!!.forEach {
+                val matcher = it.pattern.matcher(text)
                 matcher.region(0, text!!.length)
-                while (matcher.find()) {
+                while (matcher.find() && state) {
                     syntaxHighlightSpans.add(SyntaxHighlightSpan(
-                            Color.parseColor("#7F0055"),
+                            it.color,
                             matcher.start(),
                             matcher.end()
                     ))
-//                    text!!.setSpan(
-//                            ForegroundColorSpan(Color.parseColor("#7F0055")),
-//                            matcher.start(),
-//                            matcher.end(),
-//                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-//                    )
                 }
-
-                Thread.sleep(250)
-                if(spansListener != null)
-                    spansListener!!.invoke(syntaxHighlightSpans)
             }
+
+            // Thread.sleep(250)
+            if(spansListener != null)
+                spansListener!!.invoke(syntaxHighlightSpans)
         }
+
     }
 
     fun cancelTask() { state = false }
 
-    fun updatePattern(pattern: Pattern) {
-        keywords = pattern
+    fun updatePattern(_regexs: ArrayList<CodeRegex>?) {
+        regexs = _regexs
     }
 
     fun setOnSpansListener(lam: (spans: ArrayList<SyntaxHighlightSpan>) -> Unit) {

@@ -10,18 +10,9 @@ class PluginsLoader(var ctx: Context) {
     private var pluginLoadedListener: ((pl: Plugin) -> Unit)? = null
 
     private val plugins = ArrayList<Plugin>()
-    private val apiObject = object: API {
-        override fun outln(msg: String) {
-            out("$msg\n")
-        }
 
-        override fun out(msg: String) {
-            print(msg)
-        }
-
-    }
-
-    fun loadPlugin(file: File) {
+    /* загрузить плагин */
+    fun loadPlugin(id: Int, file: File) {
         val plugin = Plugin(
                 file.name.replace(".js", ""),
                 file,
@@ -29,6 +20,20 @@ class PluginsLoader(var ctx: Context) {
                 "",
                 Duktape.create()
         )
+
+        val apiObject = object: API {
+            override fun outln(msg: String) {
+                out("$msg\n")
+            }
+
+            override fun out(msg: String) {
+                print(msg)
+            }
+
+            override fun initRegex(rstr: String, color: String, cutStart: Int, cutEnd: Int) {
+                plugin.initRegex(rstr, color, cutStart, cutEnd)
+            }
+        }
 
         plugin.duktape.set("API", API::class.java, apiObject)
 
@@ -48,12 +53,17 @@ class PluginsLoader(var ctx: Context) {
             pluginLoadedListener!!.invoke(plugin)
     }
 
+    /* загрузить все плагины с папки */
     fun loadPluginsFromDir(dir: File) {
+        var id = 0
         dir.listFiles().forEach {
-            if(it.name.endsWith(".js")) loadPlugin(it)
+            if(it.name.endsWith(".js")) loadPlugin(id, it)
+
+            id++
         }
     }
 
+    /* получить список плагинов */
     fun getPlugins() : ArrayList<Plugin> {
         return plugins
     }
@@ -66,4 +76,6 @@ class PluginsLoader(var ctx: Context) {
 interface API {
     fun outln(msg: String)
     fun out(msg: String)
+
+    fun initRegex(rstr: String /* регулярное выражение */, color: String /* цвет в hex */, cutStart: Int, cutEnd: Int)
 }

@@ -271,9 +271,8 @@ class MainActivity : AppCompatActivity() {
 
                 if(isOpen) { // если плагин может открыть этот файл
                     code_editor.updatePlugin(plugin)
-                    println("currentPlugin set to ${plugin.name}")
 
-                    return@forEach
+                    return@setOnOpenFileListener
                 }
             }
 

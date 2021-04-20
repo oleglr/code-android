@@ -1,9 +1,8 @@
-function initPlugin() {}
-
-function openFile(path) {
-    return path.endsWith(".xml")
+function initPlugin() {
+    API.initRegex("(<(.*?)>||<(.*?) |<(.*?)/>)", "#0098d5", 0, 0);
+    API.initRegex("(<!--(.*?)|(.*?)-->)", "#656e77", 0, 0);
 }
 
-function loadPattern() {
-    return "\\b()\\b";
+function openFile(path) {
+    return path.endsWith(".xml");
 }
