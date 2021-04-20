@@ -59,7 +59,7 @@ class SplashDialog(var act: Activity) : Dialog(act, R.style.SplashDialog) {
         }
     }
 
-    fun setTitle(str: String) {
+    fun setProgressMessage(str: String) {
         title.text = str
     }
 }

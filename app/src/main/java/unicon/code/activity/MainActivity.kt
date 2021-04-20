@@ -21,10 +21,14 @@ import com.afollestad.materialdialogs.MaterialDialog
 import com.afollestad.materialdialogs.bottomsheets.BottomSheet
 import com.afollestad.materialdialogs.input.getInputField
 import com.afollestad.materialdialogs.input.input
+import com.afollestad.materialdialogs.list.listItems
+import com.afollestad.materialdialogs.list.listItemsMultiChoice
 import unicon.code.Global
 import unicon.code.R
 import unicon.code.dialog.SplashDialog
+import unicon.code.getPath
 import unicon.code.hideKeyboardFrom
+import unicon.code.plugin.PluginsLoader
 import unicon.code.widget.CodeEditor
 import unicon.code.widget.FileManagerView
 import java.io.File
@@ -46,7 +50,9 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_CODE_PERMISSIONS = 1
 
     private var prefs: SharedPreferences? = null
+    private var ploader: PluginsLoader? = null
     private lateinit var splash: SplashDialog
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_code)
@@ -127,10 +133,21 @@ class MainActivity : AppCompatActivity() {
 
     /* продолжение onCreate */
     private fun startApp() {
-        splash.dismiss()
+        Global.appDir = Environment.getExternalStorageDirectory().path + "/Android/data/" + applicationInfo.packageName + "/files/"
+
+        splash.setProgressMessage("Настройка")
+        val pdir = File(Global.appDir + "/plugins/")
+        if(!pdir.exists()) pdir.mkdirs()
+
+        splash.setProgressMessage("Загрузка плагинов")
+        ploader = PluginsLoader(this)
+        ploader!!.setOnPluginLoadedListener { if(!it.isLoaded) splash.setProgressMessage(it.error) }
+        ploader!!.loadPlugins(pdir)
+
         startApp2()
     }
 
+    /* продолжение onCreate 2 */
     private fun startApp2() {
         setupFileManager()
         setupDrawer()
@@ -139,26 +156,31 @@ class MainActivity : AppCompatActivity() {
         setupBar()
         loadPrefs()
 
+        splash.dismiss()
+
         val intent = intent
         val u = intent.data
         if(u != null) {
-            var file = File(getPath(u)!!)
-            println("BBB ${file.path}")
+            val file = File(getPath(u)!!)
+
             code_editor.openFile(file)
         }
     }
 
-    fun getPath(uri: Uri): String? {
-        val projection = arrayOf(MediaStore.Images.Media.DATA)
-        val cursor = contentResolver.query(uri, projection, null, null, null) ?: return null
-        val column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-        cursor.moveToFirst()
-        val s = cursor.getString(column_index)
-        cursor.close()
-        return s
+    private fun showPluginsManager() {
+        val myItems = ArrayList<String>()
+        ploader!!.plugins.forEach {
+            myItems.add(it.name)
+        }
+
+        MaterialDialog(this, BottomSheet(LayoutMode.WRAP_CONTENT)).show {
+            title(-1, "Загруженые плагины")
+            message(-1, "Все плагины находятся в папке ${Global.appDir}plugins/" )
+            listItems(items = myItems)
+        }
     }
 
-    fun loadPrefs() {
+    private fun loadPrefs() {
         if(prefs!!.getBoolean("devmode", false))
             Global.isDev = true
     }
@@ -177,10 +199,12 @@ class MainActivity : AppCompatActivity() {
         val popup = PopupMenu(applicationContext, more_btn)
         val menu = popup.menu
 
+        menu.add("Плагины")
         menu.add("Выйти")
 
         popup.setOnMenuItemClickListener {
             if(it.title == "Выйти") finishAffinity()
+            if(it.title == "Плагины") showPluginsManager()
 
             true
         }

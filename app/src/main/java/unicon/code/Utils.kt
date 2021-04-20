@@ -3,12 +3,15 @@ package unicon.code
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import androidx.core.content.IntentCompat
+import unicon.code.activity.MainActivity
 import kotlin.concurrent.thread
 
 
@@ -37,4 +40,14 @@ fun loop(lam: () -> Unit) {
             lam()
         }
     }
+}
+
+fun Activity.getPath(uri: Uri): String? {
+    val projection = arrayOf(MediaStore.Images.Media.DATA)
+    val cursor = contentResolver.query(uri, projection, null, null, null) ?: return null
+    val column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+    cursor.moveToFirst()
+    val s = cursor.getString(column_index)
+    cursor.close()
+    return s
 }
